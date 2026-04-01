@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Streak Counter</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f0f0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Streak">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@300;500;600;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --border: #333;
+      --text: #e5e7eb;
+      --text-dim: #9ca3af;
+      --text-muted: #6b7280;
+      --text-faint: #4b5563;
+      --green: #22c55e;
+      --green-dark: #16a34a;
+      --red: #ef4444;
+      --orange: #f97316;
+      --font-body: 'Outfit', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      -webkit-tap-highlight-color: transparent;
+      overflow-x: hidden;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 4px;
+      width: 100%;
+      max-width: 360px;
+      margin-bottom: 16px;
+    }
+    .tab {
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 10px 0;
+      border-radius: 9px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab.active {
+      background: #262626;
+      color: var(--text);
+    }
+
+    .page {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 380px;
+      flex: 1;
+    }
+    .page.active { display: flex; }
+
+    /* ── Counter ── */
+    .label-area {
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .label-text {
+      font-size: 17px;
+      font-weight: 300;
+      color: var(--text-dim);
+      cursor: pointer;
+      border-bottom: 1px dashed var(--border);
+      padding-bottom: 2px;
+    }
+    .label-edit {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .label-input {
+      font-family: var(--font-body);
+      font-size: 15px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 8px 12px;
+      outline: none;
+      width: 220px;
+    }
+    .small-btn {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+
+    .count-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 8px 0 20px;
+    }
+    .count-number {
+      font-family: var(--font-body);
+      font-size: min(110px, 25vw);
+      font-weight: 800;
+      color: #fff;
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+    .count-unit {
+      font-family: var(--font-mono);
+      font-size: 16px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .big-button {
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      border: 3px solid var(--green);
+      background: radial-gradient(circle at 40% 35%, #1a3a1a 0%, #0a1f0a 100%);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.25s ease;
+      box-shadow: 0 0 40px rgba(34,197,94,0.15), inset 0 0 30px rgba(34,197,94,0.05);
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .big-button span {
+      font-family: var(--font-body);
+      font-size: 26px;
+      font-weight: 600;
+      color: var(--green);
+      user-select: none;
+      pointer-events: none;
+    }
+    .big-button.done {
+      border-color: #374151;
+      background: radial-gradient(circle at 40% 35%, #1a1a1a 0%, #111 100%);
+      box-shadow: none;
+      cursor: default;
+    }
+    .big-button.done span { color: var(--text-faint); }
+    .big-button.ripple {
+      transform: scale(1.08);
+      box-shadow: 0 0 80px rgba(34,197,94,0.4), inset 0 0 40px rgba(34,197,94,0.15);
+    }
+
+    .last-logged {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-faint);
+      margin-top: 16px;
+    }
+
+    .reset-area { margin-top: 28px; }
+    .reset-toggle {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-faint);
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .reset-confirm {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .reset-confirm span {
+      color: var(--red);
+      font-size: 14px;
+    }
+    .btn-danger {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--red);
+      background: var(--red);
+      color: #fff;
+      cursor: pointer;
+    }
+
+    /* ── Calendar ── */
+    .cal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      margin-bottom: 16px;
+      padding: 0 4px;
+    }
+    .cal-nav {
+      font-family: var(--font-body);
+      font-size: 18px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 8px 12px;
+    }
+    .cal-title {
+      font-family: var(--font-body);
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      width: 100%;
+    }
+    .cal-day-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-faint);
+      text-align: center;
+      padding: 4px 0;
+      text-transform: uppercase;
+    }
+    .cal-cell {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+    }
+    .cal-cell.logged { background: var(--green-dark); }
+    .cal-cell.today { border: 2px solid var(--text-muted); }
+    .cal-cell span {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .cal-cell.logged span { color: #fff; font-weight: 600; }
+
+    .cal-summary {
+      width: 100%;
+      margin-top: 24px;
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .stat-label {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .stat-value {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* ── Resets ── */
+    .resets-title {
+      font-size: 22px;
+      font-weight: 600;
+      margin: 8px 0 4px;
+    }
+    .resets-subtitle {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-muted);
+      margin: 0 0 20px;
+    }
+    .empty-msg {
+      font-size: 15px;
+      font-weight: 300;
+      color: var(--text-faint);
+      margin-top: 40px;
+      text-align: center;
+    }
+    .reset-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+    }
+    .reset-card {
+      background: var(--surface);
+      border-radius: 10px;
+      padding: 14px 18px;
+      border-left: 3px solid var(--red);
+    }
+    .reset-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .reset-badge {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--red);
+      font-weight: 500;
+    }
+    .reset-date {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .reset-streak {
+      font-size: 14px;
+      color: var(--text-dim);
+    }
+    .reset-streak strong { color: var(--orange); }
+
+    /* safe area for notched phones */
+    @supports (padding-top: env(safe-area-inset-top)) {
+      body { padding-top: calc(16px + env(safe-area-inset-top)); padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="counter">Counter</button>
+    <button class="tab" data-tab="calendar">Calendar</button>
+    <button class="tab" data-tab="resets">Resets</button>
+  </div>
+
+  <!-- Counter Page -->
+  <div class="page active" id="page-counter">
+    <div class="label-area" id="label-area"></div>
+    <div class="count-area">
+      <span class="count-number" id="count-number">0</span>
+      <span class="count-unit" id="count-unit">days</span>
+    </div>
+    <button class="big-button" id="big-button"><span>+1 Day</span></button>
+    <p class="last-logged" id="last-logged"></p>
+    <div class="reset-area" id="reset-area"></div>
+  </div>
+
+  <!-- Calendar Page -->
+  <div class="page" id="page-calendar">
+    <div class="cal-header">
+      <button class="cal-nav" id="cal-prev">◀</button>
+      <span class="cal-title" id="cal-title"></span>
+      <button class="cal-nav" id="cal-next">▶</button>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+    <div class="cal-summary" id="cal-summary"></div>
+  </div>
+
+  <!-- Resets Page -->
+  <div class="page" id="page-resets">
+    <p class="resets-title">Reset History</p>
+    <p class="resets-subtitle" id="resets-subtitle"></p>
+    <div id="resets-content"></div>
+  </div>
+
+<script>
+  // ── State ──
+  const STORAGE_KEY = 'streak-counter-pwa-v1';
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const DAYS_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  let state = { count: 0, label: '', lastLogged: null, loggedDates: [], resets: [], startDate: null };
+  let calMonth = new Date().getMonth();
+  let calYear = new Date().getFullYear();
+  let showResetConfirm = false;
+  let editingLabel = false;
+
+  function todayStr() { return new Date().toISOString().split('T')[0]; }
+  function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
+  function firstDay(y, m) { return new Date(y, m, 1).getDay(); }
+  function fmtDate(s) { const d = new Date(s + 'T12:00:00'); return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) state = { ...state, ...JSON.parse(raw) };
+    } catch {}
+  }
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+  }
+
+  // ── Tabs ──
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('page-' + btn.dataset.tab).classList.add('active');
+      if (btn.dataset.tab === 'calendar') renderCalendar();
+      if (btn.dataset.tab === 'resets') renderResets();
+    });
+  });
+
+  // ── Counter ──
+  function renderCounter() {
+    const logged = state.lastLogged === todayStr();
+
+    // Label
+    const la = document.getElementById('label-area');
+    if (editingLabel) {
+      la.innerHTML = `<div class="label-edit">
+        <input class="label-input" id="label-input" value="${(state.label||'').replace(/"/g,'&quot;')}" placeholder="e.g. Days without smoking" maxlength="50">
+        <button class="small-btn" id="label-save-btn">Save</button>
+      </div>`;
+      const inp = document.getElementById('label-input');
+      inp.focus();
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') saveLabel(); });
+      document.getElementById('label-save-btn').addEventListener('click', saveLabel);
+    } else {
+      la.innerHTML = `<span class="label-text" id="label-text">${state.label || 'Tap to name your streak'}</span>`;
+      document.getElementById('label-text').addEventListener('click', () => { editingLabel = true; renderCounter(); });
+    }
+
+    // Count
+    document.getElementById('count-number').textContent = state.count;
+    document.getElementById('count-unit').textContent = state.count === 1 ? 'day' : 'days';
+
+    // Button
+    const btn = document.getElementById('big-button');
+    btn.className = 'big-button' + (logged ? ' done' : '');
+    btn.querySelector('span').textContent = logged ? '✓ Logged' : '+1 Day';
+
+    // Last logged
+    const ll = document.getElementById('last-logged');
+    ll.textContent = state.lastLogged ? 'Last logged: ' + fmtDate(state.lastLogged) : '';
+
+    // Reset area
+    const ra = document.getElementById('reset-area');
+    if (showResetConfirm) {
+      ra.innerHTML = `<div class="reset-confirm">
+        <span>Reset to 0?</span>
+        <button class="btn-danger" id="reset-yes">Yes, reset</button>
+        <button class="small-btn" id="reset-no">Cancel</button>
+      </div>`;
+      document.getElementById('reset-yes').addEventListener('click', doReset);
+      document.getElementById('reset-no').addEventListener('click', () => { showResetConfirm = false; renderCounter(); });
+    } else {
+      ra.innerHTML = `<button class="reset-toggle" id="reset-toggle">Reset counter</button>`;
+      document.getElementById('reset-toggle').addEventListener('click', () => { showResetConfirm = true; renderCounter(); });
+    }
+  }
+
+  function saveLabel() {
+    const inp = document.getElementById('label-input');
+    if (inp) state.label = inp.value;
+    editingLabel = false;
+    save();
+    renderCounter();
+  }
+
+  document.getElementById('big-button').addEventListener('click', () => {
+    if (state.lastLogged === todayStr()) return;
+    const today = todayStr();
+    state.count++;
+    state.lastLogged = today;
+    state.loggedDates.push(today);
+    if (!state.startDate) state.startDate = today;
+    save();
+
+    const btn = document.getElementById('big-button');
+    btn.classList.add('ripple');
+    setTimeout(() => { btn.classList.remove('ripple'); renderCounter(); }, 500);
+    renderCounter();
+  });
+
+  function doReset() {
+    state.resets.push({ date: todayStr(), streakAtReset: state.count, resetNumber: state.resets.length + 1 });
+    state.count = 0;
+    state.lastLogged = null;
+    state.startDate = null;
+    state.loggedDates = [];
+    showResetConfirm = false;
+    save();
+    renderCounter();
+  }
+
+  // ── Calendar ──
+  function renderCalendar() {
+    document.getElementById('cal-title').textContent = `${MONTHS[calMonth]} ${calYear}`;
+    const loggedSet = new Set(state.loggedDates);
+    const today = todayStr();
+
+    let html = DAYS_LABELS.map(d => `<div class="cal-day-label">${d}</div>`).join('');
+    const blanks = firstDay(calYear, calMonth);
+    for (let i = 0; i < blanks; i++) html += '<div class="cal-cell"></div>';
+    const total = daysInMonth(calYear, calMonth);
+    for (let d = 1; d <= total; d++) {
+      const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const isLogged = loggedSet.has(ds);
+      const isToday = ds === today;
+      html += `<div class="cal-cell${isLogged?' logged':''}${isToday?' today':''}"><span>${d}</span></div>`;
+    }
+    document.getElementById('cal-grid').innerHTML = html;
+
+    let summary = `<div class="stat-row"><span class="stat-label">Current streak</span><span class="stat-value">${state.count} ${state.count===1?'day':'days'}</span></div>`;
+    summary += `<div class="stat-row"><span class="stat-label">Total days logged</span><span class="stat-value">${state.loggedDates.length}</span></div>`;
+    if (state.startDate) summary += `<div class="stat-row"><span class="stat-label">Started</span><span class="stat-value">${fmtDate(state.startDate)}</span></div>`;
+    document.getElementById('cal-summary').innerHTML = summary;
+  }
+
+  document.getElementById('cal-prev').addEventListener('click', () => {
+    calMonth--;
+    if (calMonth < 0) { calMonth = 11; calYear--; }
+    renderCalendar();
+  });
+  document.getElementById('cal-next').addEventListener('click', () => {
+    calMonth++;
+    if (calMonth > 11) { calMonth = 0; calYear++; }
+    renderCalendar();
+  });
+
+  // ── Resets ──
+  function renderResets() {
+    document.getElementById('resets-subtitle').innerHTML = `Total resets: <strong style="color:var(--text)">${state.resets.length}</strong>`;
+    const container = document.getElementById('resets-content');
+    if (state.resets.length === 0) {
+      container.innerHTML = '<p class="empty-msg">No resets yet. Keep that streak going!</p>';
+      return;
+    }
+    let html = '<div class="reset-list">';
+    for (let i = state.resets.length - 1; i >= 0; i--) {
+      const r = state.resets[i];
+      html += `<div class="reset-card">
+        <div class="reset-card-top">
+          <span class="reset-badge">Reset #${r.resetNumber}</span>
+          <span class="reset-date">${fmtDate(r.date)}</span>
+        </div>
+        <p class="reset-streak">Streak was at <strong>${r.streakAtReset}</strong> ${r.streakAtReset===1?'day':'days'}</p>
+      </div>`;
+    }
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  // ── Init ──
+  load();
+  renderCounter();
+
+  // ── Register service worker ──
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>
